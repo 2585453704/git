@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:context="http://www.springframework.org/schema/context" xmlns:p="http://www.springframework.org/scxhema/p"
+       xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
+	http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.2.xsd
+	http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.2.xsd
+	http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.2.xsd
+	http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-4.2.xsd">
+
+
+    <!-- 真正可以产生Connection的ConnectionFactory，由对应的 JMS服务厂商提供 -->
+    <bean id="targetConnectionFactory" class="org.apache.activemq.ActiveMQConnectionFactory">
+        <property name="brokerURL" value="tcp://47.93.19.164:61616" />
+    </bean>
+    <!-- Spring用于管理真正的ConnectionFactory的ConnectionFactory -->
+    <bean id="connectionFactory"
+          class="org.springframework.jms.connection.SingleConnectionFactory">
+        <!-- 目标ConnectionFactory对应真实的可以产生JMS Connection的ConnectionFactory -->
+        <property name="targetConnectionFactory" ref="targetConnectionFactory" />
+    </bean>
+    <!--这个是队列目的地，点对点的 -->
+    <bean id="queueDestination" class="org.apache.activemq.command.ActiveMQQueue">
+        <constructor-arg>
+            <value>spring-queue</value>
+        </constructor-arg>
+    </bean>
+    <!--这个是主题目的地，一对多的 -->
+    <bean id="topicDestination" class="org.apache.activemq.command.ActiveMQTopic">
+        <constructor-arg value="itemAddTopic" />
+    </bean>
+    <bean id="topicDeleteDestination" class="org.apache.activemq.command.ActiveMQTopic">
+        <constructor-arg value="itemDeleteTopic" />
+    </bean>
+    <bean id="topicClickDestination" class="org.apache.activemq.command.ActiveMQTopic">
+        <constructor-arg value="itemClickTopic" />
+    </bean>
+    <bean id="topicUpdateDestination" class="org.apache.activemq.command.ActiveMQTopic">
+        <constructor-arg value="itemUpdateTopic" />
+    </bean>
+
+    <bean id="myMessageListener" class="com.search.message.MyMessageListener"/>
+    <!-- 消息监听容器 -->
+    <bean class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <property name="connectionFactory" ref="connectionFactory" />
+        <property name="destination" ref="queueDestination" />
+        <property name="messageListener" ref="myMessageListener" />
+    </bean>
+    <!-- 监听任务添加消息，同步索引库 -->
+    <bean id="itemAddMessageListener" class="com.search.message.ItemAddMessageListener"/>
+    <bean class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <property name="connectionFactory" ref="connectionFactory" />
+        <property name="destination" ref="topicDestination" />
+        <property name="messageListener" ref="itemAddMessageListener" />
+    </bean>
+    <!-- 监听任务删除消息，同步索引库 -->
+    <bean id="itemDeleteMessageListener" class="com.search.message.ItemDeleteMessageListener"/>
+    <bean class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <property name="connectionFactory" ref="connectionFactory" />
+        <property name="destination" ref="topicDeleteDestination" />
+        <property name="messageListener" ref="itemDeleteMessageListener" />
+    </bean>
+    <!-- 监听更新任务消息，同步索引库 -->
+    <bean id="itemUpdateMessageListener" class="com.search.message.ItemUpdateMessageListener"/>
+    <bean class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <property name="connectionFactory" ref="connectionFactory" />
+        <property name="destination" ref="topicUpdateDestination" />
+        <property name="messageListener" ref="itemDeleteMessageListener" />
+    </bean>
+    <!-- 监听点击消息，同步索引库，增加该任务点击量 -->
+    <bean id="clickListener" class="com.search.message.ItemClickListener"/>
+    <bean class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <property name="connectionFactory" ref="connectionFactory" />
+        <property name="destination" ref="topicClickDestination" />
+        <property name="messageListener" ref="clickListener" />
+    </bean>
+
+</beans>
